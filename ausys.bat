@@ -1,7 +1,8 @@
 @REM
-@REM Ausys - An Advanced Audit Policy Configuration Checker by Ebryx (Pvt. Ltd)
+@REM Ausys - An Advanced Audit Policy Configuration Checker
+@REM Author: Syed Hasan
 @REM Date: 20-10-2020
-@REM Version: 0.3
+@REM Version: 0.2
 @REM Description: Check the current status of advanced audit policy configurations in the system
 @REM Pre-requisites: Requires admin privileges to execute
 @REM 

@@ -1,7 +1,8 @@
 @REM
-@REM Ausys - An Advanced Audit Policy Configuration Checker by Ebryx (Pvt. Ltd)
-@REM Date: 20-10-2020
-@REM Version: 0.2
+@REM Ausys - An Advanced Audit Policy Configuration Checker
+@REM Author: Syed Hasan
+@REM Date: 25-07-2021
+@REM Version: 0.3
 @REM Description: Check the current status of advanced audit policy configurations in the system
 @REM Pre-requisites: Requires admin privileges to execute
 @REM 
@@ -19,7 +20,7 @@ cls
 
 for /f "delims=: tokens=*" %%A in ('findstr /b ::: "%~f0"') do @echo(%%A
 
-echo [7mAn Audit Configuration Checker by Ebryx (Pvt.) Ltd.[0m
+echo [7mAn Audit Configuration Checker[0m
 echo.
 
 @REM 
@@ -54,7 +55,7 @@ echo [92m[+] Acquired audit policy configurations and saved to disk. Continuing
 echo.
 
 @REM 
-@REM Return PowerShell based logging
+@REM Audit PowerShell-based logging
 @REM 
 echo [7mPowerShell Logging Status[0m
 echo [92m[+] Retrieving PowerShell logging status from the system's Registry hives[0m
@@ -70,7 +71,7 @@ echo [92m[+] Acquired PowerShell logging status from the system's Registry hive
 echo. 
 
 @REM 
-@REM Return audit settings 
+@REM Generic Auditing
 @REM 
 echo [7mAudit Trail[0m
 echo [92m[+] Retrieving audit trail of the system from the Registry hives[0m
@@ -80,7 +81,7 @@ echo [92m[+] Acquired audit trail of the sytem and stored to disk [0m
 echo. 
 
 @REM 
-@REM Checking log sources
+@REM Log Source Auditing
 @REM 
 echo [7mLog Channels [Size, Retention Policies, Access Times][0m
 echo [92m[+] Retrieving key information about log sources using wevtutil[0m
@@ -101,10 +102,57 @@ wevtutil gli Microsoft-Windows-PowerShell/Operational >> %host%_logsources.txt
 echo. >> %host%_logsources.txt
 echo [92m[+] Acuiqred key information about log sources and stored to disk[0m
 
-@REM 
-@REM Execution Completed
-@REM 
-echo.
-echo [92m[+] EXECUTION STATUS: Complete[0m
-echo [92m[+] Analyze results from auditsettings.txt, logsources.txt, powershell_logging.txt, and sys_auditpol.txt for a review of the logging configurations...[0m
-timeout 10
+if %1%==enable (
+
+    echo [92m[+] Enabling Audit Logging[0m
+
+    auditpol /set /subcategory:"Logon" /success:enable /failure:enable
+    auditpol /set /subcategory:"Logoff" /success:enable /failure:enable
+    auditpol /set /subcategory:"Account Lockout" /success:enable /failure:enable
+    auditpol /set /subcategory:"Special Logon" /success:enable /failure:enable
+    echo [92m[+] Authentication auditing enabled[0m
+
+    Auditpol /set /subcategory:"Process Creation" /success:enable /failure:enable
+    Auditpol /set /subcategory:"Process Termination" /success:enable /failure:enable
+    Auditpol /set /subcategory:"Plug and Play Events" /success:enable /failure:enable
+    reg add "HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\Audit" /f /v ProcessCreationIncludeCmdLine_Enabled /t REG_DWORD /d 1
+    echo [92m[+] Process Execution auditing enabled[0m
+
+    reg add "HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\PowerShell" /f /v ExecutionPolicy /t REG_SZ /d "RemoteSigned"
+    reg add "HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\PowerShell\ModuleLogging" /f /v EnableModuleLogging /t REG_DWORD /d 1
+    reg add "HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\PowerShell\ScriptBlockLogging" /f /v EnableScriptBlockLogging /t REG_DWORD /d 1
+    reg add "HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\PowerShell\Transcription" /f /v EnableInvocationHeader /t REG_DWORD /d 1
+    reg add "HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\PowerShell\Transcription" /f /v EnableTranscripting /t REG_DWORD /d 1
+    mkdir %USERPROFILE%\Documents\PowerShell\Transcripts
+    reg add "HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\PowerShell\Transcription" /f /v OutputDirectory /t REG_SZ /d "%USERPROFILE%\Documents\PowerShell\Transcripts"
+    echo [92m[+] PowerShell auditing enabled [Module Logging, ScriptBlockLogging, Transcription (%USERPROFILE%\Documents\PowerShell\Transcripts)] [0m
+
+    auditpol /set /subcategory:"Removable Storage" /success:enable /failure:enable
+    echo [92m[+] Removable Storage auditing enabled [0m
+
+    wevtutil sl /q Microsoft-Windows-RemoteDesktopServices-RdpCoreTS/Admin /e:true
+    wevtutil sl /q Microsoft-Windows-RemoteDesktopServices-RdpCoreTS/Debug /e:true
+    wevtutil sl /q Microsoft-Windows-RemoteDesktopServices-RdpCoreTS/Operational /e:true
+    wevtutil sl /q Microsoft-Windows-TerminalServices-LocalSessionManager/Operational /e:true
+    wevtutil sl /q Microsoft-Windows-TerminalServices-LocalSessionManager/Admin /e:true
+    wevtutil sl /q Microsoft-Windows-TerminalServices-RemoteConnectionManager/Admin /e:true
+    wevtutil sl /q Microsoft-Windows-TerminalServices-RemoteConnectionManager/Operational /e:true
+    wevtutil sl /q Microsoft-Windows-TerminalServices-RDPClient/Operational /e:true
+    wevtutil sl Microsoft-Windows-TaskScheduler/Operational /e:true
+    echo [92m[+] Enabled Log Sources: Task Scheduler, RDP, TerminalServices [0m
+    @REM 
+    @REM Execution Completed
+    @REM 
+    echo.
+    echo [92m[+] EXECUTION STATUS: Complete[0m
+    echo [92m[+] Audit log settings were also enabled during the execution.[0m
+
+) else (
+    @REM 
+    @REM Execution Completed
+    @REM 
+    echo.
+    echo [92m[+] EXECUTION STATUS: Complete.[0m
+    echo [92m[-] No audit log settings were enabled during the execution. Re-run the script with the 'enable' parameter to do so.[0m
+
+) 
