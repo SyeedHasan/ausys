@@ -8,6 +8,7 @@
 @REM 
 
 cls
+setlocal EnableExtensions EnableDelayedExpansion
 @echo off
 
 :::
@@ -60,13 +61,22 @@ echo.
 echo [7mPowerShell Logging Status[0m
 echo [92m[+] Retrieving PowerShell logging status from the system's Registry hives[0m
 echo Module Logging Status: > %host%_powershell_logging.txt
-reg query "HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\PowerShell\ModuleLogging" >> %host%_powershell_logging.txt
+reg query "HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\PowerShell\ModuleLogging" >> %host%_powershell_logging.txt 2>nul
+if %errorlevel%==1 (
+    echo Disabled >> %host%_powershell_logging.txt
+)
 echo. >> %host%_powershell_logging.txt
 echo Script-block Logging Status: >> %host%_powershell_logging.txt
-reg query "HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\PowerShell\ScriptBlockLogging" >> %host%_powershell_logging.txt
+reg query "HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\PowerShell\ScriptBlockLogging" >> %host%_powershell_logging.txt 2>nul
+if %errorlevel%==1 (
+    echo Disabled >> %host%_powershell_logging.txt
+)
 echo. >> %host%_powershell_logging.txt
 echo Transcription Status for PowerShell: >> %host%_powershell_logging.txt
-reg query "HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\PowerShell\Transcription" >> %host%_powershell_logging.txt
+reg query "HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\PowerShell\Transcription" >> %host%_powershell_logging.txt 2>nul
+if %errorlevel%==1 (
+    echo Disabled >> %host%_powershell_logging.txt
+)
 echo [92m[+] Acquired PowerShell logging status from the system's Registry hives[0m
 echo. 
 
@@ -76,7 +86,15 @@ echo.
 echo [7mAudit Trail[0m
 echo [92m[+] Retrieving audit trail of the system from the Registry hives[0m
 echo Audit Settings on the System: > %host%_auditsettings.txt
-reg query "HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\Audit" >> %host%_auditsettings.txt
+reg query "HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\Audit" >> %host%_auditsettings.txt 2>nul
+if %errorlevel%==1 (
+    echo Disabled >> %host%_auditsettings.txt
+)
+echo Advanced Audit Policy: >> %host%_auditsettings.txt
+reg query "HKLM\System\CurrentControlSet\Control\Lsa" /v SCENoApplyLegacyAuditPolicy >> %host%_auditsettings.txt >nul 2>nul
+if %errorlevel%==1 (
+    echo Disabled >> %host%_auditsettings.txt
+)
 echo [92m[+] Acquired audit trail of the sytem and stored to disk [0m
 echo. 
 
@@ -85,24 +103,46 @@ echo.
 @REM 
 echo [7mLog Channels [Size, Retention Policies, Access Times][0m
 echo [92m[+] Retrieving key information about log sources using wevtutil[0m
-echo Channel: Application > %host%_logsources.txt
-wevtutil gli Application >> %host%_logsources.txt
-echo. >> %host%_logsources.txt
-echo Channel: Security >> %host%_logsources.txt
-wevtutil gli Security >> %host%_logsources.txt 
-echo. >> %host%_logsources.txt
-echo Channel: System >> %host%_logsources.txt
-wevtutil gli System >> %host%_logsources.txt
-echo. >> %host%_logsources.txt
-echo Channel: Powershell-Admin >> %host%_logsources.txt
-wevtutil gli Microsoft-Windows-PowerShell/Admin >> %host%_logsources.txt
-echo. >> %host%_logsources.txt
-echo Channel: Powershell-Operational >> %host%_logsources.txt
-wevtutil gli Microsoft-Windows-PowerShell/Operational >> %host%_logsources.txt
-echo. >> %host%_logsources.txt
-echo [92m[+] Acuiqred key information about log sources and stored to disk[0m
+echo Critical Log Channels: > %host%_gli-logsources.txt
+echo. >> %host%_gli-logsources.txt
+echo Channel: Application >> %host%_gli-logsources.txt
+wevtutil gli Application >> %host%_gli-logsources.txt
+echo. >> %host%_gli-logsources.txt
+echo Channel: Security >> %host%_gli-logsources.txt
+wevtutil gli Security >> %host%_gli-logsources.txt 
+echo. >> %host%_gli-logsources.txt
+echo Channel: System >> %host%_gli-logsources.txt
+wevtutil gli System >> %host%_gli-logsources.txt
+echo. >> %host%_gli-logsources.txt
+echo Channel: Powershell-Admin >> %host%_gli-logsources.txt
+wevtutil gli Microsoft-Windows-PowerShell/Admin >> %host%_gli-logsources.txt
+echo. >> %host%_gli-logsources.txt
+echo Channel: Powershell-Operational >> %host%_gli-logsources.txt
+wevtutil gli Microsoft-Windows-PowerShell/Operational >> %host%_gli-logsources.txt
+echo. >> %host%_gli-logsources.txt
+echo Other Channels: >> %host%_gli-logsources.txt
+echo. >> %host%_gli-logsources.txt
 
-if %1%==enable (
+@REM echo Listing all Log Channels: >> %host%_el-logchannels.txt
+@REM echo. >> %host%_el-logchannels.txt
+@REM wevtutil el >> %host%_el-logchannels.txt 
+
+@REM FOR /F "tokens=*" %%A in (%host%_el-logchannels.txt) DO (
+@REM     wevtutil gli "%%A" >> %host%_gli-logsources.txt
+@REM     echo. >> %host%_gli-logsources.txt
+@REM     wevtutil gl "%%A" >> %host%_gl-logsources.txt
+@REM     echo. >> %host%_gl-logsources.txt
+@REM )
+
+echo [92m[+] Acuiqred key information about log sources and stored to disk[0m
+echo [92m[+] Checking if 'enable' mode is to be executed[0m
+
+if not defined %1% set %1%=FALSE
+
+if %1%==TRUE (
+    echo [92m[+] Executing 'enable' mode[0m
+    echo [92m[+] Forcing Advanced Audit Logging via SCENoApplyLegacyAuditPolicy [0m
+    reg add "HKLM\System\CurrentControlSet\Control\Lsa" /v SCENoApplyLegacyAuditPolicy /t REG_DWORD /d 1 /f
 
     echo [92m[+] Enabling Audit Logging[0m
 
@@ -125,7 +165,7 @@ if %1%==enable (
     reg add "HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\PowerShell\Transcription" /f /v EnableTranscripting /t REG_DWORD /d 1
     mkdir %USERPROFILE%\Documents\PowerShell\Transcripts
     reg add "HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\PowerShell\Transcription" /f /v OutputDirectory /t REG_SZ /d "%USERPROFILE%\Documents\PowerShell\Transcripts"
-    echo [92m[+] PowerShell auditing enabled [Module Logging, ScriptBlockLogging, Transcription (%USERPROFILE%\Documents\PowerShell\Transcripts)] [0m
+    echo [92m[+] PowerShell auditing enabled [Module Logging, ScriptBlockLogging, Transcriptions] [0m
 
     auditpol /set /subcategory:"Removable Storage" /success:enable /failure:enable
     echo [92m[+] Removable Storage auditing enabled [0m
