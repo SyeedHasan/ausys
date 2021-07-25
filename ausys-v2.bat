@@ -2,7 +2,7 @@
 @REM Ausys - An Advanced Audit Policy Configuration Checker
 @REM Author: Syed Hasan
 @REM Date: 25-07-2021
-@REM Version: 0.3
+@REM Version: 2.1
 @REM Description: Check the current status of advanced audit policy configurations in the system
 @REM Pre-requisites: Requires admin privileges to execute
 @REM 
@@ -137,39 +137,40 @@ echo. >> %host%_gli-logsources.txt
 echo [92m[+] Acuiqred key information about log sources and stored to disk[0m
 echo [92m[+] Checking if 'enable' mode is to be executed[0m
 
-if not defined %1% set %1%=FALSE
-
-if %1%==TRUE (
+if "%1" EQU "enable" (
     echo [92m[+] Executing 'enable' mode[0m
     echo [92m[+] Forcing Advanced Audit Logging via SCENoApplyLegacyAuditPolicy [0m
     reg add "HKLM\System\CurrentControlSet\Control\Lsa" /v SCENoApplyLegacyAuditPolicy /t REG_DWORD /d 1 /f
 
-    echo [92m[+] Enabling Audit Logging[0m
+    echo [7mEnabling Audit Logging[0m
 
-    auditpol /set /subcategory:"Logon" /success:enable /failure:enable
-    auditpol /set /subcategory:"Logoff" /success:enable /failure:enable
-    auditpol /set /subcategory:"Account Lockout" /success:enable /failure:enable
-    auditpol /set /subcategory:"Special Logon" /success:enable /failure:enable
-    echo [92m[+] Authentication auditing enabled[0m
+    auditpol /set /subcategory:"Logon" /success:enable /failure:enable >nul
+    auditpol /set /subcategory:"Logoff" /success:enable /failure:enable >nul
+    auditpol /set /subcategory:"Account Lockout" /success:enable /failure:enable >nul
+    auditpol /set /subcategory:"Special Logon" /success:enable /failure:enable >nul
+    echo [92m[+] Authentication auditing enabled[0m
 
-    Auditpol /set /subcategory:"Process Creation" /success:enable /failure:enable
-    Auditpol /set /subcategory:"Process Termination" /success:enable /failure:enable
-    Auditpol /set /subcategory:"Plug and Play Events" /success:enable /failure:enable
-    reg add "HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\Audit" /f /v ProcessCreationIncludeCmdLine_Enabled /t REG_DWORD /d 1
-    echo [92m[+] Process Execution auditing enabled[0m
+    Auditpol /set /subcategory:"Process Creation" /success:enable /failure:enable >nul
+    Auditpol /set /subcategory:"Process Termination" /success:enable /failure:enable >nul
+    Auditpol /set /subcategory:"Plug and Play Events" /success:enable /failure:enable >nul
+    reg add "HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\Audit" /f /v ProcessCreationIncludeCmdLine_Enabled /t REG_DWORD /d 1 >nul
+    echo [92m[+] Process Execution auditing enabled[0m
 
-    reg add "HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\PowerShell" /f /v ExecutionPolicy /t REG_SZ /d "RemoteSigned"
-    reg add "HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\PowerShell\ModuleLogging" /f /v EnableModuleLogging /t REG_DWORD /d 1
-    reg add "HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\PowerShell\ScriptBlockLogging" /f /v EnableScriptBlockLogging /t REG_DWORD /d 1
-    reg add "HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\PowerShell\Transcription" /f /v EnableInvocationHeader /t REG_DWORD /d 1
-    reg add "HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\PowerShell\Transcription" /f /v EnableTranscripting /t REG_DWORD /d 1
-    mkdir %USERPROFILE%\Documents\PowerShell\Transcripts
-    reg add "HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\PowerShell\Transcription" /f /v OutputDirectory /t REG_SZ /d "%USERPROFILE%\Documents\PowerShell\Transcripts"
-    echo [92m[+] PowerShell auditing enabled [Module Logging, ScriptBlockLogging, Transcriptions] [0m
+    echo [7mPowerShell Audit Logging[0m
 
-    auditpol /set /subcategory:"Removable Storage" /success:enable /failure:enable
-    echo [92m[+] Removable Storage auditing enabled [0m
+    reg add "HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\PowerShell" /f /v ExecutionPolicy /t REG_SZ /d "RemoteSigned" >nul
+    reg add "HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\PowerShell\ModuleLogging" /f /v EnableModuleLogging /t REG_DWORD /d 1 >nul 
+    reg add "HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\PowerShell\ScriptBlockLogging" /f /v EnableScriptBlockLogging /t REG_DWORD /d 1 >nul
+    reg add "HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\PowerShell\Transcription" /f /v EnableInvocationHeader /t REG_DWORD /d 1 >nul
+    reg add "HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\PowerShell\Transcription" /f /v EnableTranscripting /t REG_DWORD /d 1 >nul
+    mkdir %USERPROFILE%\Documents\PowerShell\Transcripts 2>nul 
+    reg add "HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\PowerShell\Transcription" /f /v OutputDirectory /t REG_SZ /d "%USERPROFILE%\Documents\PowerShell\Transcripts" >nul
+    echo [92m[+] PowerShell auditing enabled [Module Logging, ScriptBlockLogging, Transcriptions] [0m
 
+    auditpol /set /subcategory:"Removable Storage" /success:enable /failure:enable >nul
+    echo [92m[+] Removable Storage auditing enabled [0m
+    
+    echo [7mEnabling Log Channels[0m
     wevtutil sl /q Microsoft-Windows-RemoteDesktopServices-RdpCoreTS/Admin /e:true
     wevtutil sl /q Microsoft-Windows-RemoteDesktopServices-RdpCoreTS/Debug /e:true
     wevtutil sl /q Microsoft-Windows-RemoteDesktopServices-RdpCoreTS/Operational /e:true
@@ -179,7 +180,7 @@ if %1%==TRUE (
     wevtutil sl /q Microsoft-Windows-TerminalServices-RemoteConnectionManager/Operational /e:true
     wevtutil sl /q Microsoft-Windows-TerminalServices-RDPClient/Operational /e:true
     wevtutil sl Microsoft-Windows-TaskScheduler/Operational /e:true
-    echo [92m[+] Enabled Log Sources: Task Scheduler, RDP, TerminalServices [0m
+    echo [92m[+] Enabled Log Sources: Task Scheduler, RDP, TerminalServices [0m
     @REM 
     @REM Execution Completed
     @REM 
