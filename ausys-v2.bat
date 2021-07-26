@@ -134,29 +134,38 @@ echo. >> %host%_gli-logsources.txt
 @REM     echo. >> %host%_gl-logsources.txt
 @REM )
 
-echo [92m[+] Acuiqred key information about log sources and stored to disk[0m
+echo [92m[+] Acquired key information about log sources and stored to disk[0m
 echo [92m[+] Checking if 'enable' mode is to be executed[0m
 
 if "%1" EQU "enable" (
+    echo [7m Enabling Advanced Audit Logging and Log Channels [0m
     echo [92m[+] Executing 'enable' mode[0m
     echo [92m[+] Forcing Advanced Audit Logging via SCENoApplyLegacyAuditPolicy [0m
-    reg add "HKLM\System\CurrentControlSet\Control\Lsa" /v SCENoApplyLegacyAuditPolicy /t REG_DWORD /d 1 /f
+    reg add "HKLM\System\CurrentControlSet\Control\Lsa" /v SCENoApplyLegacyAuditPolicy /t REG_DWORD /d 1 /f > nul
 
-    echo [7mEnabling Audit Logging[0m
+    echo [+] Setting Audit Policies
+
+    auditpol /set /subcategory:"Credential Validation" /success:enable /failure:enable >nul
+    auditpol /set /subcategory:"Kerberos Authentication Service" /success:disable /failure:disable >nul
+    auditpol /set /subcategory:"Kerberos Service Ticket Operations" /success:disable /failure:disable >nul
+    auditpol /set /subcategory:"Other Account Logon Events" /success:enable /failure:enable >nul
 
     auditpol /set /subcategory:"Logon" /success:enable /failure:enable >nul
-    auditpol /set /subcategory:"Logoff" /success:enable /failure:enable >nul
+    auditpol /set /subcategory:"Logoff" /success:enable /failure:disable >nul
     auditpol /set /subcategory:"Account Lockout" /success:enable /failure:enable >nul
-    auditpol /set /subcategory:"Special Logon" /success:enable /failure:enable >nul
-    echo [92m[+] Authentication auditing enabled[0m
+    auditpol /set /subcategory:"Special Logon" /success:enable /failure:disable >nul
+    auditpol /set /subcategory:"Other Logon/Logoff Events" /success:enable /failure:enable >nul
+
+    auditpol /set /category:"Account Management" /success:disable /failure:disable
+
+    auditpol /set /subcategory:"Detailed File Share" /success:enable
+    auditpol /set /subcategory:"Registry" /success:enable
 
     Auditpol /set /subcategory:"Process Creation" /success:enable /failure:enable >nul
     Auditpol /set /subcategory:"Process Termination" /success:enable /failure:enable >nul
     Auditpol /set /subcategory:"Plug and Play Events" /success:enable /failure:enable >nul
     reg add "HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\Audit" /f /v ProcessCreationIncludeCmdLine_Enabled /t REG_DWORD /d 1 >nul
-    echo [92m[+] Process Execution auditing enabled[0m
-
-    echo [7mPowerShell Audit Logging[0m
+    echo [+] Process Execution auditing enabled
 
     reg add "HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\PowerShell" /f /v ExecutionPolicy /t REG_SZ /d "RemoteSigned" >nul
     reg add "HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\PowerShell\ModuleLogging" /f /v EnableModuleLogging /t REG_DWORD /d 1 >nul 
@@ -165,12 +174,12 @@ if "%1" EQU "enable" (
     reg add "HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\PowerShell\Transcription" /f /v EnableTranscripting /t REG_DWORD /d 1 >nul
     mkdir %USERPROFILE%\Documents\PowerShell\Transcripts 2>nul 
     reg add "HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\PowerShell\Transcription" /f /v OutputDirectory /t REG_SZ /d "%USERPROFILE%\Documents\PowerShell\Transcripts" >nul
-    echo [92m[+] PowerShell auditing enabled [Module Logging, ScriptBlockLogging, Transcriptions] [0m
+    echo [+] PowerShell auditing enabled [Module Logging, ScriptBlockLogging, Transcriptions] 
 
     auditpol /set /subcategory:"Removable Storage" /success:enable /failure:enable >nul
-    echo [92m[+] Removable Storage auditing enabled [0m
+    echo [+] Removable Storage auditing enabled
     
-    echo [7mEnabling Log Channels[0m
+    wevtutil sl /q Microsoft-Windows-DNS-Client/Operational /e:true
     wevtutil sl /q Microsoft-Windows-RemoteDesktopServices-RdpCoreTS/Admin /e:true
     wevtutil sl /q Microsoft-Windows-RemoteDesktopServices-RdpCoreTS/Debug /e:true
     wevtutil sl /q Microsoft-Windows-RemoteDesktopServices-RdpCoreTS/Operational /e:true
@@ -180,20 +189,29 @@ if "%1" EQU "enable" (
     wevtutil sl /q Microsoft-Windows-TerminalServices-RemoteConnectionManager/Operational /e:true
     wevtutil sl /q Microsoft-Windows-TerminalServices-RDPClient/Operational /e:true
     wevtutil sl Microsoft-Windows-TaskScheduler/Operational /e:true
-    echo [92m[+] Enabled Log Sources: Task Scheduler, RDP, TerminalServices [0m
+    echo [+] Enabled Log Sources: Task Scheduler, RDP, TerminalServices, DNS
+
+    echo [+] Setting Log Channel Sizes to 250MB+
+    wevtutil sl Security /ms:262144000
+    wevtutil sl System /ms:262144000
+    wevtutil sl Application /ms:262144000
+    wevtutil sl "Windows Powershell" /ms:262144000
+    wevtutil sl "Microsoft-Windows-PowerShell/Operational" /ms:262144000
+    wevtutil sl "Microsoft-Windows-Sysmon/Operational" /ms:262144000
+
     @REM 
     @REM Execution Completed
     @REM 
     echo.
-    echo [92m[+] EXECUTION STATUS: Complete[0m
-    echo [92m[+] Audit log settings were also enabled during the execution.[0m
+    echo [+] EXECUTION STATUS: Complete
+    echo [+] Audit log settings were also enabled during the execution.
 
 ) else (
     @REM 
     @REM Execution Completed
     @REM 
     echo.
-    echo [92m[+] EXECUTION STATUS: Complete.[0m
-    echo [92m[-] No audit log settings were enabled during the execution. Re-run the script with the 'enable' parameter to do so.[0m
+    echo [+] EXECUTION STATUS: Complete.
+    echo [-] No audit log settings were enabled during the execution. Re-run the script with the 'enable' parameter to do so.
 
 ) 
